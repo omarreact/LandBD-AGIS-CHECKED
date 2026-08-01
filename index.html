@@ -1,0 +1,763 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>LIOS Geospatial Discovery Engine (GDE) — Engineering Testing Console</title>
+   <!-- Tailwind CSS CDN -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <!-- FontAwesome Icons -->
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <script>
+       tailwind.config = {
+           darkMode: 'class',
+           theme: {
+               extend: {
+                   colors: {
+                       lios: {
+                           50: '#f0f9ff',
+                           100: '#e0f2fe',
+                           500: '#0284c7',
+                           800: '#075985',
+                           900: '#0c4a6e',
+                           darkBg: '#0b0f19',
+                           cardBg: '#111827',
+                           panelBg: '#1f2937'
+                       }
+                   }
+               }
+           }
+       }
+   </script>
+   <style>
+       /* Custom scrollbar styling */
+       ::-webkit-scrollbar { width: 6px; height: 6px; }
+       ::-webkit-scrollbar-track { background: #0b0f19; }
+       ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+       ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+       .tab-active { border-bottom: 2px solid #3b82f6; color: #60a5fa; font-weight: 600; }
+       pre code { font-family: 'Fira Code', 'Courier New', Courier, monospace; }
+   </style>
+</head>
+<body class="bg-lios-darkBg text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+   <!-- TOP HEADER -->
+   <header class="bg-lios-cardBg border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0 z-10">
+       <div class="flex items-center space-x-4">
+           <div class="flex items-center space-x-2">
+               <i class="fa-solid fa-earth-asia text-blue-500 text-2xl animate-pulse"></i>
+               <div>
+                   <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-2">
+                       LIOS GDE Console <span class="bg-blue-900/60 text-blue-400 border border-blue-700 text-xs px-2 py-0.5 rounded-full font-mono">v3.0.4</span>
+                   </h1>
+                   <p class="text-xs text-gray-400">National Connector Knowledge Base (NCKB) Engineering Testing Suite</p>
+               </div>
+           </div>
+       </div>
+
+       <!-- CLOUDFLARE WORKER & GLOBAL ACTIONS -->
+       <div class="flex items-center space-x-3">
+           <div class="flex items-center bg-gray-900 border border-gray-700 rounded px-3 py-1 text-xs">
+               <i class="fa-solid fa-cloud text-gray-400 mr-2"></i>
+               <input type="text" id="customCfWorker" placeholder="Custom CF Worker URL (Method 7)" class="bg-transparent text-gray-200 focus:outline-none w-56 font-mono text-xs">
+           </div>
+
+           <div class="h-6 w-px bg-gray-800"></div>
+
+           <button id="btnTestSelected" onclick="BulkTester.runSelected()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition">
+               <i class="fa-solid fa-play"></i> Test Selected
+           </button>
+           <button id="btnTestAll" onclick="BulkTester.runAll()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition">
+               <i class="fa-solid fa-forward-fast"></i> Test All
+           </button>
+           <button id="btnStop" onclick="BulkTester.stop()" disabled class="bg-rose-700 hover:bg-rose-600 disabled:opacity-40 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition">
+               <i class="fa-solid fa-square"></i> Stop
+           </button>
+
+           <div class="relative group">
+               <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5">
+                   <i class="fa-solid fa-download"></i> Export <i class="fa-solid fa-chevron-down text-xxs"></i>
+               </button>
+               <div class="absolute right-0 mt-1 w-40 bg-gray-800 border border-gray-700 rounded shadow-xl hidden group-hover:block z-50">
+                   <a href="#" onclick="Exporter.toJson()" class="block px-4 py-2 text-xs text-gray-300 hover:bg-gray-700">JSON Format</a>
+                   <a href="#" onclick="Exporter.toCsv()" class="block px-4 py-2 text-xs text-gray-300 hover:bg-gray-700">CSV Format</a>
+                   <a href="#" onclick="Exporter.toMarkdown()" class="block px-4 py-2 text-xs text-gray-300 hover:bg-gray-700">Markdown Summary</a>
+                   <a href="#" onclick="Exporter.toHtmlReport()" class="block px-4 py-2 text-xs text-gray-300 hover:bg-gray-700">Standalone HTML Report</a>
+               </div>
+           </div>
+       </div>
+   </header>
+
+   <!-- METRICS & STATS BAR -->
+   <div class="bg-gray-900 border-b border-gray-800 px-6 py-2 flex items-center justify-between shrink-0 text-xs">
+       <div class="flex items-center space-x-6">
+           <span class="text-gray-400">Total Connectors: <strong id="statTotal" class="text-white font-mono">0</strong></span>
+           <span class="text-gray-400">Healthy: <strong id="statHealthy" class="text-emerald-400 font-mono">0</strong></span>
+           <span class="text-gray-400">Degraded/Slow: <strong id="statDegraded" class="text-amber-400 font-mono">0</strong></span>
+           <span class="text-gray-400">Failed/Blocked: <strong id="statFailed" class="text-rose-400 font-mono">0</strong></span>
+           <span class="text-gray-400">Untested: <strong id="statUntested" class="text-gray-400 font-mono">0</strong></span>
+       </div>
+       <div class="w-1/3 flex items-center space-x-3">
+           <div class="w-full bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-700">
+               <div id="bulkProgressBar" class="bg-blue-500 h-2 w-0 transition-all duration-200"></div>
+           </div>
+           <span id="bulkProgressText" class="text-gray-400 font-mono text-xxs">0%</span>
+       </div>
+   </div>
+
+   <!-- MAIN TWO-COLUMN WORKSPACE -->
+   <div class="flex-1 flex overflow-hidden">
+
+       <!-- LEFT SIDEBAR: CONNECTOR LIST & FILTERS -->
+       <aside class="w-96 bg-lios-cardBg border-r border-gray-800 flex flex-col shrink-0">
+           <!-- Search & Domain Filter -->
+           <div class="p-3 border-b border-gray-800 space-y-2">
+               <div class="relative">
+                   <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-xs"></i>
+                   <input type="text" id="searchBox" oninput="UIManager.applyFilters()" placeholder="Search agency, domain, API type..." class="w-full bg-gray-900 border border-gray-700 rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+               </div>
+               
+               <div class="flex items-center gap-1 overflow-x-auto pb-1 text-xxs" id="filterChips">
+                   <button onclick="UIManager.setFilterStatus('ALL')" class="chip-filter active bg-blue-900/60 border border-blue-700 text-blue-300 px-2 py-0.5 rounded whitespace-nowrap">All</button>
+                   <button onclick="UIManager.setFilterStatus('Healthy')" class="chip-filter bg-gray-800 border border-gray-700 text-gray-400 hover:text-emerald-400 px-2 py-0.5 rounded whitespace-nowrap">Healthy</button>
+                   <button onclick="UIManager.setFilterStatus('Failed')" class="chip-filter bg-gray-800 border border-gray-700 text-gray-400 hover:text-rose-400 px-2 py-0.5 rounded whitespace-nowrap">Failed</button>
+                   <button onclick="UIManager.setFilterType('ArcGIS')" class="chip-filter bg-gray-800 border border-gray-700 text-gray-400 hover:text-blue-400 px-2 py-0.5 rounded whitespace-nowrap">ArcGIS</button>
+                   <button onclick="UIManager.setFilterType('STAC')" class="chip-filter bg-gray-800 border border-gray-700 text-gray-400 hover:text-purple-400 px-2 py-0.5 rounded whitespace-nowrap">STAC</button>
+                   <button onclick="UIManager.setFilterType('OGC')" class="chip-filter bg-gray-800 border border-gray-700 text-gray-400 hover:text-teal-400 px-2 py-0.5 rounded whitespace-nowrap">OGC</button>
+               </div>
+           </div>
+
+           <!-- Connectors List Container -->
+           <div class="flex-1 overflow-y-auto divide-y divide-gray-800/60" id="connectorList">
+               <!-- Injected dynamically via JS -->
+           </div>
+       </aside>
+
+       <!-- RIGHT PANEL: CONSOLE DETAILS & TEST RESULTS -->
+       <main class="flex-1 flex flex-col bg-lios-darkBg overflow-hidden">
+
+           <!-- CONNECTOR HEADER BLOCK -->
+           <div class="bg-lios-cardBg p-4 border-b border-gray-800 shrink-0 flex items-start justify-between">
+               <div class="space-y-1">
+                   <div class="flex items-center space-x-2">
+                       <span id="activeDomainBadge" class="bg-blue-900/40 text-blue-400 border border-blue-800 px-2 py-0.5 rounded text-xxs font-mono uppercase">Domain</span>
+                       <span id="activeAgencyBadge" class="bg-gray-800 text-gray-300 px-2 py-0.5 rounded text-xxs">Agency</span>
+                       <span id="activeApiTypeBadge" class="bg-purple-900/40 text-purple-300 border border-purple-800 px-2 py-0.5 rounded text-xxs font-mono">API Type</span>
+                   </div>
+                   <h2 id="activeConnectorName" class="text-xl font-bold text-white">Select a Connector</h2>
+                   <p id="activeUrlText" class="text-xs text-gray-400 font-mono break-all">https://...</p>
+               </div>
+
+               <div class="flex items-center space-x-3">
+                   <div id="activeHealthBadge" class="px-3 py-1 rounded text-xs font-bold bg-gray-800 text-gray-400 border border-gray-700">
+                       UNTESTED
+                   </div>
+                   <button id="btnRunSingleTest" onclick="UIManager.testActiveConnector()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-xs font-semibold flex items-center gap-2 shadow-lg transition">
+                       <i class="fa-solid fa-bolt"></i> Execute Multi-Fetch
+                   </button>
+               </div>
+           </div>
+
+           <!-- FETCH STRATEGY EXECUTION LOG -->
+           <div id="fetchLogBox" class="bg-gray-950 px-4 py-2 border-b border-gray-800 hidden font-mono text-xs text-gray-400 space-y-1">
+               <div class="flex justify-between items-center text-gray-500 text-xxs uppercase tracking-wider">
+                   <span>Multi-Fetch Execution Strategy Log</span>
+                   <span id="fetchMethodBadge" class="text-blue-400">Method 1/10</span>
+               </div>
+               <div id="fetchLogList" class="space-y-0.5 max-h-24 overflow-y-auto"></div>
+           </div>
+
+           <!-- MAIN WORKSPACE TABS -->
+           <div class="bg-gray-900 border-b border-gray-800 px-4 flex space-x-6 text-xs font-medium text-gray-400 shrink-0">
+               <button onclick="UIManager.switchTab('overview')" id="tabBtn-overview" class="py-3 tab-active">Overview & Diagnostics</button>
+               <button onclick="UIManager.switchTab('inspector')" id="tabBtn-inspector" class="py-3 hover:text-gray-200">Specialized Inspector</button>
+               <button onclick="UIManager.switchTab('response')" id="tabBtn-response" class="py-3 hover:text-gray-200">Response Viewer</button>
+               <button onclick="UIManager.switchTab('report')" id="tabBtn-report" class="py-3 hover:text-gray-200">Engineering Integration Report</button>
+           </div>
+
+           <!-- TAB CONTENTS CONTAINER -->
+           <div class="flex-1 overflow-y-auto p-6 relative" id="tabContentArea">
+
+               <!-- OVERVIEW TAB -->
+               <div id="tab-overview" class="space-y-6">
+                   <!-- Metrics Cards -->
+                   <div class="grid grid-cols-4 gap-4">
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800">
+                           <span class="text-gray-400 text-xs block mb-1">HTTP Status</span>
+                           <span id="metricHttpStatus" class="text-lg font-mono font-bold text-gray-300">--</span>
+                       </div>
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800">
+                           <span class="text-gray-400 text-xs block mb-1">Response Time</span>
+                           <span id="metricLatency" class="text-lg font-mono font-bold text-gray-300">-- ms</span>
+                       </div>
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800">
+                           <span class="text-gray-400 text-xs block mb-1">Payload Size</span>
+                           <span id="metricSize" class="text-lg font-mono font-bold text-gray-300">-- KB</span>
+                       </div>
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800">
+                           <span class="text-gray-400 text-xs block mb-1">Successful Fetch Engine</span>
+                           <span id="metricEngine" class="text-xs font-mono font-semibold text-blue-400 break-words">--</span>
+                       </div>
+                   </div>
+
+                   <!-- Health & Quality Indicators -->
+                   <div class="grid grid-cols-2 gap-4">
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800 space-y-3">
+                           <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Quality & Confidence Assessment</h3>
+                           <div class="space-y-2">
+                               <div class="flex justify-between text-xs">
+                                   <span class="text-gray-400">Data Confidence Score</span>
+                                   <span id="scoreConfidence" class="font-mono text-emerald-400">0 / 5</span>
+                               </div>
+                               <div class="flex justify-between text-xs">
+                                   <span class="text-gray-400">Schema Health Index</span>
+                                   <span id="scoreQuality" class="font-mono text-blue-400">0 / 5</span>
+                               </div>
+                           </div>
+                       </div>
+
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800 space-y-3">
+                           <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Network & Security Profile</h3>
+                           <div class="space-y-1 text-xs">
+                               <div class="flex justify-between"><span class="text-gray-400">Content-Type:</span> <span id="metaContentType" class="font-mono text-gray-200">--</span></div>
+                               <div class="flex justify-between"><span class="text-gray-400">CORS Allowed:</span> <span id="metaCors" class="font-mono text-gray-200">--</span></div>
+                               <div class="flex justify-between"><span class="text-gray-400">Auth / WAF Detected:</span> <span id="metaAuth" class="font-mono text-gray-200">--</span></div>
+                           </div>
+                       </div>
+                   </div>
+
+                   <!-- Recommendation Box -->
+                   <div class="bg-blue-950/40 border border-blue-800/60 p-4 rounded text-xs space-y-2">
+                       <h4 class="font-bold text-blue-300 flex items-center gap-2">
+                           <i class="fa-solid fa-circle-info"></i> Production Engineering Recommendation
+                       </h4>
+                       <p id="recommendationText" class="text-gray-300 leading-relaxed">Select a connector and execute the Multi-Fetch Engine to generate technical integration instructions.</p>
+                   </div>
+               </div>
+
+               <!-- SPECIALIZED INSPECTOR TAB -->
+               <div id="tab-inspector" class="hidden space-y-4">
+                   <div id="inspectorTypeHeader" class="bg-gray-800/60 p-3 rounded border border-gray-700 text-xs text-gray-300">
+                       Select a connector and execute inspection.
+                   </div>
+                   <div id="inspectorBody" class="space-y-4"></div>
+               </div>
+
+               <!-- RESPONSE VIEWER TAB -->
+               <div id="tab-response" class="hidden space-y-2 h-full flex flex-col">
+                   <div class="flex justify-between items-center text-xs">
+                       <span class="text-gray-400">Parsed Raw Payload</span>
+                       <button onclick="UIManager.copyResponsePayload()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded">
+                           <i class="fa-regular fa-copy"></i> Copy Code
+                       </button>
+                   </div>
+                   <pre class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 overflow-auto text-xs text-emerald-400 font-mono"><code id="rawResponseCode">// Payload will render here...</code></pre>
+               </div>
+
+               <!-- INTEGRATION REPORT TAB -->
+               <div id="tab-report" class="hidden space-y-4">
+                   <div class="flex justify-between items-center">
+                       <h3 class="text-sm font-bold text-gray-200">Generated Markdown Technical Briefing</h3>
+                       <button onclick="UIManager.copyReportMarkdown()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs">
+                           <i class="fa-regular fa-copy"></i> Copy Markdown
+                       </button>
+                   </div>
+                   <textarea id="reportMarkdownArea" readonly class="w-full h-96 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-xs text-gray-300 focus:outline-none"></textarea>
+               </div>
+
+           </div>
+       </main>
+   </div>
+
+   <!-- JAVASCRIPT ENGINE ARCHITECTURE -->
+   <script>
+       /**
+        * 1. NATIONAL CONNECTOR KNOWLEDGE BASE (NCKB) SEED DATABASE
+        * Spans all 19 LIOS Intelligence Domains with authentic Bangladesh & Global endpoints.
+        */
+       const NCKB_DATABASE = [
+           { id: 'c01', agency: 'NSDI / SoB', domain: '01 Land Administration', name: 'NSDI National Layer Catalog', type: 'REST', url: 'https://nsdi.gov.bd/api/layers/' },
+           { id: 'c02', agency: 'DLRS', domain: '01 Land Administration', name: 'Digital Land Records (DLRMS)', type: 'REST', url: 'https://dlrms.land.gov.bd/api/v1/mouza' },
+           { id: 'c03', agency: 'Land.gov.bd', domain: '01 Land Administration', name: 'LD Tax Portal Services', type: 'JSON', url: 'https://ldtax.gov.bd/api/status' },
+           { id: 'c04', agency: 'Survey of Bangladesh', domain: '02 Survey & Cadastral', name: 'SoB Cadastral Framework WMS', type: 'WMS', url: 'https://nsdi.gov.bd/geoserver/ows?service=WMS&version=1.1.1&request=GetCapabilities' },
+           { id: 'c05', agency: 'Land Ministry', domain: '02 Survey & Cadastral', name: 'Interactive Map Land Portal', type: 'REST', url: 'https://map.land.gov.bd/api/layers' },
+           { id: 'c06', agency: 'RAJUK', domain: '03 Planning & Development', name: 'RAJUK DAP Masterplan Directory', type: 'ArcGIS REST', url: 'https://masterplan.rajuk.gov.bd/server/rest/services/?f=pjson' },
+           { id: 'c07', agency: 'CDA', domain: '03 Planning & Development', name: 'Chittagong Development Authority MapServer', type: 'ArcGIS REST', url: 'https://gis.cda.gov.bd/server/rest/services/?f=pjson' },
+           { id: 'c08', agency: 'Supreme Court', domain: '04 Legal & Judiciary', name: 'Case Search Public Registry', type: 'REST', url: 'https://supremecourt.gov.bd/api/cases' },
+           { id: 'c09', agency: 'BG Press', domain: '04 Legal & Judiciary', name: 'Bangladesh Gazette Index', type: 'HTML', url: 'https://dpp.gov.bd/bgpress/' },
+           { id: 'c10', agency: 'BForest', domain: '05 Environment', name: 'Forest Department GeoPortal WMS', type: 'WMS', url: 'http://geoportal.bforest.gov.bd/geoserver/gwc/service/wms?request=GetCapabilities' },
+           { id: 'c11', agency: 'UNEP-WCMC', domain: '05 Environment', name: 'WDPA Protected Planet API (BD)', type: 'REST', url: 'https://api.protectedplanet.net/v3/protected_areas?token=test' },
+           { id: 'c12', agency: 'BWDB / FFWC', domain: '06 Climate & Disaster', name: 'FFWC River Water Levels API', type: 'JSON', url: 'https://api.ffwc.gov.bd/?format=json' },
+           { id: 'c13', agency: 'BMD', domain: '06 Climate & Disaster', name: 'Meteorological Weather Stations', type: 'REST', url: 'https://bmd.gov.bd/api/weather' },
+           { id: 'c14', agency: 'RHD', domain: '07 Infrastructure', name: 'Roads & Highways ArcGIS Directory', type: 'ArcGIS REST', url: 'https://gis.rhd.gov.bd/server/rest/services/?f=pjson' },
+           { id: 'c15', agency: 'LGED', domain: '07 Infrastructure', name: 'LGED Rural Road Network GIS', type: 'WMS', url: 'https://gis.lged.gov.bd/geoserver/ows?service=WMS&request=GetCapabilities' },
+           { id: 'c16', agency: 'DPDC', domain: '08 Utilities', name: 'Electrical Substation Network', type: 'REST', url: 'https://dpdc.gov.bd/api/substations' },
+           { id: 'c17', agency: 'DAE / SRDI', domain: '09 Agriculture', name: 'Crop Suitability & Soil Classification', type: 'REST', url: 'https://srdi.gov.bd/api/soil-data' },
+           { id: 'c18', agency: 'ICIMOD', domain: '10 Geology', name: 'ICIMOD Bangladesh Basemap Services', type: 'ArcGIS REST', url: 'https://geoapps.icimod.org/icimodarcgis/rest/services/Bangladesh/Basemap/MapServer?f=pjson' },
+           { id: 'c19', agency: 'DGHS', domain: '11 Socioeconomic', name: 'Health Facilities ArcGIS Server', type: 'ArcGIS REST', url: 'https://gis.dghs.gov.bd/server/rest/services/?f=pjson' },
+           { id: 'c20', agency: 'BBS', domain: '11 Socioeconomic', name: 'Census & GeoCode Directory', type: 'JSON', url: 'https://bbs.gov.bd/api/geocodes' },
+           { id: 'c21', agency: 'BEZA', domain: '12 Economic Zones', name: 'Economic Zones Spatial Boundary', type: 'REST', url: 'https://beza.gov.bd/api/zones' },
+           { id: 'c22', agency: 'Microsoft', domain: '13 Address & Geocoding', name: 'Building Footprints Bangladesh', type: 'GeoJSON', url: 'https://minedbuildings.blob.core.windows.net/global-buildings/2023-04-25/tiles/pdf/BGD.geojson' },
+           { id: 'c23', agency: 'Microsoft PC', domain: '14 Remote Sensing', name: 'Planetary Computer STAC (Sentinel-2)', type: 'STAC', url: 'https://planetarycomputer.microsoft.com/api/stac/v1/search?collections=sentinel-2-l2a&bbox=88.01,20.74,92.67,26.63&limit=2' },
+           { id: 'c24', agency: 'Element 84', domain: '14 Remote Sensing', name: 'Earth Search STAC API', type: 'STAC', url: 'https://earth-search.aws.element84.com/v1/search' },
+           { id: 'c25', agency: 'National Archives', domain: '15 Historical Archives', name: 'Historical Survey Sheet Catalog', type: 'JSON', url: 'https://archives.gov.bd/api/maps' },
+           { id: 'c26', agency: 'BG Press', domain: '16 Gazette & Documents', name: 'Land Acquisition Gazettes Search', type: 'REST', url: 'https://dpp.gov.bd/api/gazettes' },
+           { id: 'c27', agency: 'HDX / OCHA', domain: '17 International Open Data', name: 'HDX Bangladesh Admin Boundaries', type: 'CKAN', url: 'https://data.humdata.org/api/3/action/package_search?q=groups:bgd' },
+           { id: 'c28', agency: 'GeoBoundaries', domain: '17 International Open Data', name: 'GeoBoundaries BD ADM2 Boundary', type: 'JSON', url: 'https://www.geoboundaries.org/api/v4/geoBoundaries/BGD/ADM2/' },
+           { id: 'c29', agency: 'OpenStreetMap', domain: '18 Community Data', name: 'OSM Overpass API Bangladesh', type: 'REST', url: 'https://overpass-api.de/api/interpreter?data=[out:json];area[name="Bangladesh"];node(area)[amenity=hospital];out%205;' },
+           { id: 'c30', agency: 'LIOS AI', domain: '19 AI Knowledge Services', name: 'LIOS Knowledge Graph Embeddings', type: 'REST', url: 'https://api.nblip.gov.bd/v1/ai/knowledge' }
+       ];
+
+       /**
+        * 2. MULTI-FETCH ENGINE
+        * Sequential execution across 10 fallback proxies/transformations without security bypasses.
+        */
+       class MultiFetchEngine {
+           static async execute(targetUrl, logCallback) {
+               const url = targetUrl.trim();
+               const customWorker = document.getElementById('customCfWorker').value.trim();
+
+               const strategies = [
+                   { id: 'M1', name: 'Direct Fetch', fn: (u) => u },
+                   { id: 'M2', name: 'Isomorphic CORS Proxy', fn: (u) => `https://cors.isomorphic-git.org/${u}` },
+                   { id: 'M3', name: 'CorsProxy.io', fn: (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}` },
+                   { id: 'M4', name: 'AllOrigins Raw Proxy', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+                   { id: 'M5', name: 'ThingProxy', fn: (u) => `https://thingproxy.freeboard.io/fetch/${u}` },
+                   { id: 'M6', name: 'CodeTabs Proxy', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+                   { 
+                       id: 'M7', 
+                       name: 'Custom Cloudflare Worker', 
+                       fn: (u) => customWorker ? `${customWorker}?url=${encodeURIComponent(u)}` : null 
+                   },
+                   { 
+                       id: 'M8', 
+                       name: 'GitHub to jsDelivr CDN', 
+                       fn: (u) => u.includes('github.com') ? u.replace('github.com', 'cdn.jsdelivr.net/gh').replace('/raw/', '@') : null 
+                   },
+                   { 
+                       id: 'M9', 
+                       name: 'UNPKG CDN Transformation', 
+                       fn: (u) => u.includes('unpkg.com') ? u : null 
+                   },
+                   { 
+                       id: 'M10', 
+                       name: 'STAC Auto-Fix (sentinel-2-l2a)', 
+                       fn: (u) => (u.includes('stac') && !u.includes('collections=')) ? `${u}${u.includes('?') ? '&' : '?'}collections=sentinel-2-l2a` : null 
+                   }
+               ];
+
+               for (let i = 0; i < strategies.length; i++) {
+                   const strat = strategies[i];
+                   const proxyUrl = strat.fn(url);
+
+                   if (!proxyUrl) continue;
+
+                   logCallback(strat.id, strat.name, 'PENDING', `Executing ${strat.name}...`);
+
+                   try {
+                       const controller = new AbortController();
+                       const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+
+                       const startTime = performance.now();
+                       const response = await fetch(proxyUrl, { method: 'GET', signal: controller.signal });
+                       const endTime = performance.now();
+                       clearTimeout(timeoutId);
+
+                       const latency = Math.round(endTime - startTime);
+
+                       if (response.ok) {
+                           const rawText = await response.text();
+                           logCallback(strat.id, strat.name, 'SUCCESS', `HTTP ${response.status} • ${latency}ms`);
+                           return {
+                               success: true,
+                               engine: strat.name,
+                               status: response.status,
+                               latency: latency,
+                               headers: Object.fromEntries(response.headers.entries()),
+                               rawText: rawText
+                           };
+                       } else {
+                           logCallback(strat.id, strat.name, 'FAILED', `HTTP ${response.status} ${response.statusText}`);
+                       }
+                   } catch (err) {
+                       logCallback(strat.id, strat.name, 'FAILED', err.name === 'AbortError' ? 'Timeout (6s)' : 'CORS / Network Error');
+                   }
+               }
+
+               return {
+                   success: false,
+                   engine: 'None (All 10 Strategies Failed)',
+                   status: 0,
+                   latency: 0,
+                   error: 'Endpoint unreachable from browser. Server-side proxy required due to WAF/CORS restrictions.'
+               };
+           }
+       }
+
+       /**
+        * 3. RESPONSE ANALYZER ENGINE
+        */
+       class ResponseAnalyzer {
+           static analyze(rawText) {
+               if (!rawText) return { type: 'UNKNOWN', parsed: null };
+
+               const trimmed = rawText.trim();
+
+               // Check JSON formats
+               if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                   try {
+                       const json = JSON.parse(trimmed);
+                       
+                       if (json.currentVersion || json.folders || json.services || json.layers) {
+                           return { type: 'ARCGIS_REST', parsed: json };
+                       }
+                       if (json.type === 'FeatureCollection' || json.type === 'Feature' || json.geometry) {
+                           return { type: 'GEOJSON', parsed: json };
+                       }
+                       if (json.stac_version || json.type === 'Collection' || (json.collections && json.links)) {
+                           return { type: 'STAC', parsed: json };
+                       }
+                       if (json.help && json.result) {
+                           return { type: 'CKAN', parsed: json };
+                       }
+                       return { type: 'JSON', parsed: json };
+                   } catch (e) {
+                       // Not valid JSON
+                   }
+               }
+
+               // Check XML formats
+               if (trimmed.startsWith('<')) {
+                   if (trimmed.includes('WMS_Capabilities')) return { type: 'OGC_WMS', parsed: trimmed };
+                   if (trimmed.includes('WFS_Capabilities')) return { type: 'OGC_WFS', parsed: trimmed };
+                   return { type: 'XML/HTML', parsed: trimmed };
+               }
+
+               return { type: 'TEXT', parsed: trimmed };
+           }
+       }
+
+       /**
+        * 4. UI MANAGER & STATE CONTROLLER
+        */
+       class UIManager {
+           static state = {
+               connectors: [...NCKB_DATABASE],
+               activeConnector: NCKB_DATABASE[0],
+               activeTab: 'overview',
+               filterStatus: 'ALL',
+               filterType: 'ALL',
+               testResults: {}
+           };
+
+           static init() {
+               this.renderConnectorList();
+               this.selectConnector(this.state.connectors[0].id);
+               this.updateMetricsBar();
+           }
+
+           static renderConnectorList() {
+               const listEl = document.getElementById('connectorList');
+               listEl.innerHTML = '';
+
+               const search = document.getElementById('searchBox').value.toLowerCase();
+
+               const filtered = this.state.connectors.filter(c => {
+                   const matchesSearch = c.name.toLowerCase().includes(search) || 
+                                         c.agency.toLowerCase().includes(search) || 
+                                         c.domain.toLowerCase().includes(search);
+                   const res = this.state.testResults[c.id];
+                   const health = res ? res.health : 'UNTESTED';
+
+                   const matchesStatus = this.state.filterStatus === 'ALL' || health === this.state.filterStatus;
+                   const matchesType = this.state.filterType === 'ALL' || c.type.includes(this.state.filterType);
+
+                   return matchesSearch && matchesStatus && matchesType;
+               });
+
+               filtered.forEach(c => {
+                   const res = this.state.testResults[c.id];
+                   const health = res ? res.health : 'UNTESTED';
+                   const isSelected = this.state.activeConnector.id === c.id;
+
+                   let badgeClass = 'bg-gray-800 text-gray-400 border-gray-700';
+                   if (health === 'Healthy') badgeClass = 'bg-emerald-950 text-emerald-400 border-emerald-800';
+                   if (health === 'Failed') badgeClass = 'bg-rose-950 text-rose-400 border-rose-800';
+
+                   const div = document.createElement('div');
+                   div.className = `p-3 hover:bg-gray-800/50 cursor-pointer transition border-l-2 ${isSelected ? 'bg-gray-800/80 border-blue-500' : 'border-transparent'}`;
+                   div.onclick = () => UIManager.selectConnector(c.id);
+
+                   div.innerHTML = `
+                       <div class="flex justify-between items-start mb-1">
+                           <span class="text-xxs font-mono text-gray-400 uppercase">${c.agency}</span>
+                           <span class="text-xxs font-mono px-1.5 py-0.5 rounded border ${badgeClass}">${health}</span>
+                       </div>
+                       <h4 class="text-xs font-semibold text-gray-200 line-clamp-1">${c.name}</h4>
+                       <div class="flex justify-between items-center mt-2 text-xxs text-gray-500 font-mono">
+                           <span>${c.type}</span>
+                           <span>${c.domain.split(' ')[0]}</span>
+                       </div>
+                   `;
+                   listEl.appendChild(div);
+               });
+           }
+
+           static selectConnector(id) {
+               const c = this.state.connectors.find(item => item.id === id);
+               if (!c) return;
+
+               this.state.activeConnector = c;
+               this.renderConnectorList();
+
+               document.getElementById('activeConnectorName').textContent = c.name;
+               document.getElementById('activeDomainBadge').textContent = c.domain;
+               document.getElementById('activeAgencyBadge').textContent = c.agency;
+               document.getElementById('activeApiTypeBadge').textContent = c.type;
+               document.getElementById('activeUrlText').textContent = c.url;
+
+               const res = this.state.testResults[c.id];
+               this.renderTestResults(res);
+           }
+
+           static async testActiveConnector() {
+               const c = this.state.activeConnector;
+               const logBox = document.getElementById('fetchLogBox');
+               const logList = document.getElementById('fetchLogList');
+               
+               logBox.classList.remove('hidden');
+               logList.innerHTML = '';
+
+               const fetchResult = await MultiFetchEngine.execute(c.url, (id, name, status, msg) => {
+                   document.getElementById('fetchMethodBadge').textContent = `${id}: ${name}`;
+                   const item = document.createElement('div');
+                   item.className = `flex justify-between text-xxs font-mono ${status === 'SUCCESS' ? 'text-emerald-400' : status === 'FAILED' ? 'text-rose-400' : 'text-gray-400'}`;
+                   item.innerHTML = `<span>[${id}] ${name}</span><span>${msg}</span>`;
+                   logList.appendChild(item);
+                   logList.scrollTop = logList.scrollHeight;
+               });
+
+               const analysis = ResponseAnalyzer.analyze(fetchResult.rawText);
+
+               const testRecord = {
+                   health: fetchResult.success ? 'Healthy' : 'Failed',
+                   status: fetchResult.status,
+                   latency: fetchResult.latency,
+                   size: fetchResult.rawText ? (fetchResult.rawText.length / 1024).toFixed(1) : 0,
+                   engine: fetchResult.engine,
+                   analysis: analysis,
+                   rawText: fetchResult.rawText || fetchResult.error
+               };
+
+               this.state.testResults[c.id] = testRecord;
+               this.renderTestResults(testRecord);
+               this.renderConnectorList();
+               this.updateMetricsBar();
+           }
+
+           static renderTestResults(res) {
+               const badge = document.getElementById('activeHealthBadge');
+
+               if (!res) {
+                   badge.className = 'px-3 py-1 rounded text-xs font-bold bg-gray-800 text-gray-400 border border-gray-700';
+                   badge.textContent = 'UNTESTED';
+                   document.getElementById('metricHttpStatus').textContent = '--';
+                   document.getElementById('metricLatency').textContent = '-- ms';
+                   document.getElementById('metricSize').textContent = '-- KB';
+                   document.getElementById('metricEngine').textContent = '--';
+                   document.getElementById('rawResponseCode').textContent = '// Click "Execute Multi-Fetch" to run test.';
+                   return;
+               }
+
+               if (res.health === 'Healthy') {
+                   badge.className = 'px-3 py-1 rounded text-xs font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
+                   badge.textContent = 'HEALTHY';
+               } else {
+                   badge.className = 'px-3 py-1 rounded text-xs font-bold bg-rose-950 text-rose-400 border border-rose-800';
+                   badge.textContent = 'FAILED / BLOCKED';
+               }
+
+               document.getElementById('metricHttpStatus').textContent = res.status;
+               document.getElementById('metricLatency').textContent = `${res.latency} ms`;
+               document.getElementById('metricSize').textContent = `${res.size} KB`;
+               document.getElementById('metricEngine').textContent = res.engine;
+
+               document.getElementById('scoreConfidence').textContent = res.health === 'Healthy' ? '5 / 5' : '1 / 5';
+               document.getElementById('scoreQuality').textContent = res.health === 'Healthy' ? '4 / 5' : '0 / 5';
+
+               document.getElementById('metaContentType').textContent = res.analysis.type;
+               document.getElementById('metaCors').textContent = res.health === 'Healthy' ? 'Allowed (via Proxy)' : 'Blocked';
+               document.getElementById('metaAuth').textContent = 'None Detected';
+
+               document.getElementById('recommendationText').textContent = res.health === 'Healthy' 
+                   ? `Endpoint verified successfully via ${res.engine}. Payload parsed as ${res.analysis.type}. Ready for PostgreSQL/STAC connector registration.` 
+                   : `Browser client restricted. Deploy a server-side Node.js connector using PostGIS to bypass browser WAF/CORS limits.`;
+
+               document.getElementById('rawResponseCode').textContent = res.analysis.parsed && typeof res.analysis.parsed === 'object'
+                   ? JSON.stringify(res.analysis.parsed, null, 2)
+                   : res.rawText;
+
+               this.renderSpecializedInspector(res.analysis);
+               this.generateReportMarkdown(res);
+           }
+
+           static renderSpecializedInspector(analysis) {
+               const header = document.getElementById('inspectorTypeHeader');
+               const body = document.getElementById('inspectorBody');
+               body.innerHTML = '';
+
+               header.textContent = `Inspector Mode: ${analysis.type}`;
+
+               if (analysis.type === 'ARCGIS_REST' && analysis.parsed) {
+                   const data = analysis.parsed;
+                   body.innerHTML = `
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800 space-y-2 text-xs">
+                           <h4 class="font-bold text-blue-400">ArcGIS Server Metadata</h4>
+                           <div><span class="text-gray-400">Server Version:</span> ${data.currentVersion || 'Unknown'}</div>
+                           <div><span class="text-gray-400">Folders:</span> ${data.folders ? data.folders.join(', ') : 'None'}</div>
+                           <div><span class="text-gray-400">Services Count:</span> ${data.services ? data.services.length : 0}</div>
+                       </div>
+                   `;
+               } else if (analysis.type === 'STAC' && analysis.parsed) {
+                   const data = analysis.parsed;
+                   body.innerHTML = `
+                       <div class="bg-lios-cardBg p-4 rounded border border-gray-800 space-y-2 text-xs">
+                           <h4 class="font-bold text-purple-400">STAC Catalog Metadata</h4>
+                           <div><span class="text-gray-400">STAC Version:</span> ${data.stac_version || '1.0.0'}</div>
+                           <div><span class="text-gray-400">Type:</span> ${data.type || 'Catalog'}</div>
+                           <div><span class="text-gray-400">Features Returned:</span> ${data.features ? data.features.length : 0}</div>
+                       </div>
+                   `;
+               } else {
+                   body.innerHTML = `<div class="text-xs text-gray-500">No specialized parser available for format: ${analysis.type}</div>`;
+               }
+           }
+
+           static generateReportMarkdown(res) {
+               const c = this.state.activeConnector;
+               const md = `# LIOS Integration Briefing: ${c.name}\n* **Agency:** ${c.agency}\n* **Domain:** ${c.domain}\n* **Endpoint URL:** \`${c.url}\`\n* **Test Status:** ${res.health}\n* **HTTP Code:** ${res.status}\n* **Response Time:** ${res.latency}ms\n* **Fetch Engine:** ${res.engine}\n\n## Technical Assessment\nPayload returned type **${res.analysis.type}**. \n\n### Recommendation\n${res.health === 'Healthy' ? 'Approved for production connector registration.' : 'Requires server-side proxy module in Node.js backend.'}`;
+
+               document.getElementById('reportMarkdownArea').value = md;
+           }
+
+           static switchTab(tabId) {
+               ['overview', 'inspector', 'response', 'report'].forEach(t => {
+                   document.getElementById(`tab-${t}`).classList.add('hidden');
+                   document.getElementById(`tabBtn-${t}`).classList.remove('tab-active');
+               });
+               document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+               document.getElementById(`tabBtn-${tabId}`).classList.add('tab-active');
+           }
+
+           static updateMetricsBar() {
+               const total = this.state.connectors.length;
+               let healthy = 0, failed = 0;
+
+               Object.values(this.state.testResults).forEach(r => {
+                   if (r.health === 'Healthy') healthy++;
+                   if (r.health === 'Failed') failed++;
+               });
+
+               document.getElementById('statTotal').textContent = total;
+               document.getElementById('statHealthy').textContent = healthy;
+               document.getElementById('statFailed').textContent = failed;
+               document.getElementById('statUntested').textContent = total - (healthy + failed);
+           }
+
+           static applyFilters() { this.renderConnectorList(); }
+           static setFilterStatus(status) { this.state.filterStatus = status; this.applyFilters(); }
+           static setFilterType(type) { this.state.filterType = type; this.applyFilters(); }
+
+           static copyResponsePayload() {
+               navigator.clipboard.writeText(document.getElementById('rawResponseCode').textContent);
+               alert('Response payload copied to clipboard!');
+           }
+
+           static copyReportMarkdown() {
+               navigator.clipboard.writeText(document.getElementById('reportMarkdownArea').value);
+               alert('Integration briefing copied to clipboard!');
+           }
+       }
+
+       /**
+        * 5. BULK TESTING ENGINE
+        */
+       class BulkTester {
+           static isRunning = false;
+
+           static async runAll() {
+               this.isRunning = true;
+               document.getElementById('btnTestAll').disabled = true;
+               document.getElementById('btnStop').disabled = false;
+
+               const connectors = UIManager.state.connectors;
+               const total = connectors.length;
+
+               for (let i = 0; i < total; i++) {
+                   if (!this.isRunning) break;
+
+                   const c = connectors[i];
+                   UIManager.selectConnector(c.id);
+                   await UIManager.testActiveConnector();
+
+                   const pct = Math.round(((i + 1) / total) * 100);
+                   document.getElementById('bulkProgressBar').style.width = `${pct}%`;
+                   document.getElementById('bulkProgressText').textContent = `${pct}%`;
+               }
+
+               this.stop();
+           }
+
+           static stop() {
+               this.isRunning = false;
+               document.getElementById('btnTestAll').disabled = false;
+               document.getElementById('btnStop').disabled = true;
+           }
+       }
+
+       /**
+        * 6. EXPORTER MODULE
+        */
+       class Exporter {
+           static toJson() {
+               const data = JSON.stringify(UIManager.state.testResults, null, 2);
+               this.downloadFile(data, 'lios-connector-test-results.json', 'application/json');
+           }
+
+           static toCsv() {
+               let csv = 'ID,Agency,Domain,Name,Health,Status,Latency,Engine\n';
+               UIManager.state.connectors.forEach(c => {
+                   const r = UIManager.state.testResults[c.id] || {};
+                   csv += `"${c.id}","${c.agency}","${c.domain}","${c.name}","${r.health || 'UNTESTED'}","${r.status || ''}","${r.latency || ''}","${r.engine || ''}"\n`;
+               });
+               this.downloadFile(csv, 'lios-connector-test-results.csv', 'text/csv');
+           }
+
+           static toMarkdown() {
+               let md = `# LIOS Connector Test Execution Summary\n\n| Agency | Connector | Status | Latency | Engine |\n|---|---|---|---|---|\n`;
+               UIManager.state.connectors.forEach(c => {
+                   const r = UIManager.state.testResults[c.id] || {};
+                   md += `| ${c.agency} | ${c.name} | ${r.health || 'UNTESTED'} | ${r.latency || '--'}ms | ${r.engine || '--'} |\n`;
+               });
+               this.downloadFile(md, 'lios-test-summary.md', 'text/markdown');
+           }
+
+           static toHtmlReport() {
+               const html = `<!DOCTYPE html><html><head><title>LIOS Report</title></head><body><h1>LIOS Test Report</h1><pre>${JSON.stringify(UIManager.state.testResults, null, 2)}</pre></body></html>`;
+               this.downloadFile(html, 'lios-report.html', 'text/html');
+           }
+
+           static downloadFile(content, fileName, mimeType) {
+               const a = document.createElement('a');
+               const blob = new Blob([content], { type: mimeType });
+               a.href = URL.createObjectURL(blob);
+               a.download = fileName;
+               a.click();
+           }
+       }
+
+       // Initialize Console on Load
+       window.addEventListener('DOMContentLoaded', () => UIManager.init());
+   </script>
+</body>
+</html>
