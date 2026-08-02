@@ -1,564 +1,856 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-   <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-   <title>LIOS | National Geospatial Intelligence Platform</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>LIOS — RAJUK Geospatial Intelligence Platform</title>
+  <meta name="description" content="Land Intelligence and Observation System — RAJUK public GIS layers with feature identification" />
 
-   <!-- Tailwind CSS -->
-   <script src="https://cdn.tailwindcss.com"></script>
-   <!-- FontAwesome -->
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-   
-   <!-- MapLibre GL JS -->
-   <link href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" rel="stylesheet" />
-   <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
+  <!-- MapLibre -->
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-   <script>
-       tailwind.config = {
-           theme: { 
-               extend: { 
-                   colors: { primary: '#1e3a8a', secondary: '#3b82f6', accent: '#0ea5e9' },
-                   fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-               } 
-           }
-       }
-   </script>
-   <style>
-       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-       body { margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Inter', sans-serif; overflow: hidden; }
-       ::-webkit-scrollbar { width: 5px; height: 5px; }
-       ::-webkit-scrollbar-track { background: #f1f5f9; }
-       ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
-       ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-       
-       /* Floating Labels */
-       .floating-input { position: relative; }
-       .floating-input input, .floating-input select { width: 100%; border: 1px solid #e2e8f0; border-radius: 0.375rem; padding: 0.75rem 0.75rem 0.25rem 0.75rem; font-size: 0.875rem; background: #fff; transition: all 0.2s; outline: none; appearance: none;}
-       .floating-input input:focus, .floating-input select:focus { border-color: #3b82f6; ring: 1px solid #3b82f6; }
-       .floating-input label { position: absolute; left: 0.75rem; top: 0.875rem; color: #64748b; font-size: 0.875rem; pointer-events: none; transition: all 0.2s; background: #fff; padding: 0 0.25rem; }
-       .floating-input input:focus ~ label, .floating-input input:not(:placeholder-shown) ~ label,
-       .floating-input select:focus ~ label, .floating-input select:not([value=""]) ~ label { top: -0.5rem; font-size: 0.7rem; color: #3b82f6; font-weight: 600; }
+  <style>
+    :root {
+      --primary: #0b3d5c;
+      --primary-lt: #1a5276;
+      --accent: #0ea5e9;
+      --accent-glow: rgba(14, 165, 233, 0.25);
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 4px rgba(15, 23, 42, 0.08);
+      --shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+      --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.18);
+      --header-h: 52px;
+      --panel-w: 310px;
+    }
 
-       .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid rgba(255,255,255,0.2); }
-       .tab-active { border-bottom: 2px solid #1e3a8a; color: #1e3a8a; font-weight: 600; }
-       #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: "DM Sans", system-ui, sans-serif; color: var(--text); overflow: hidden; }
+    #map { position: absolute; inset: 0; }
 
-       /* Loader Animation */
-       .loader { border-top-color: #3b82f6; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
-       @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-   </style>
+    /* ========== HEADER ========== */
+    .header {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+      height: var(--header-h);
+      background: linear-gradient(135deg, rgba(11,61,92,0.97) 0%, rgba(26,82,118,0.97) 100%);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0 1rem;
+      box-shadow: 0 2px 16px rgba(11,61,92,0.4);
+    }
+    .header-logo { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+    .logo-icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #0284c7);
+      display: grid; place-items: center; font-size: 0.9rem;
+      box-shadow: 0 2px 8px rgba(14,165,233,0.4); flex-shrink: 0;
+    }
+    .logo-sub { font-size: 0.62rem; opacity: 0.6; font-weight: 400; display: block; letter-spacing: 0.05em; }
+    .header-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.15); flex-shrink: 0; }
+    .header-search {
+      flex: 1; max-width: 340px; display: flex; align-items: center; gap: 0.5rem;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 0 0.75rem; height: 34px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .header-search:focus-within {
+      background: rgba(255,255,255,0.15); border-color: rgba(14,165,233,0.6);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .header-search i { font-size: 0.75rem; opacity: 0.6; flex-shrink: 0; }
+    .header-search input {
+      flex: 1; background: none; border: none; outline: none;
+      color: #fff; font-size: 0.8rem; font-family: inherit;
+    }
+    .header-search input::placeholder { color: rgba(255,255,255,0.45); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+    .header-chip {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.04em;
+      padding: 0.2rem 0.6rem; border-radius: 999px;
+      display: flex; align-items: center; gap: 0.3rem;
+    }
+    .chip-live {
+      background: rgba(16,185,129,0.2); color: #6ee7b7;
+      border: 1px solid rgba(16,185,129,0.3);
+    }
+    .chip-live::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: #10b981; animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.3); }
+    }
+    .btn-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1); color: #fff;
+      cursor: pointer; display: grid; place-items: center; font-size: 0.8rem;
+      transition: background 0.2s, border-color 0.2s; flex-shrink: 0;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); }
+    .btn-icon.active { background: var(--accent); border-color: var(--accent); }
+
+    /* ========== PANEL ========== */
+    .panel {
+      position: absolute; top: var(--header-h); right: 0; bottom: 0;
+      width: var(--panel-w); z-index: 20;
+      background: #f8fafc; border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: -4px 0 20px rgba(15,23,42,0.08);
+    }
+    .panel.hidden { transform: translateX(100%); }
+
+    .panel-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      background: var(--card); flex-shrink: 0;
+    }
+    .panel-tab {
+      flex: 1; padding: 0.65rem 0.5rem; font-size: 0.75rem; font-weight: 600;
+      text-align: center; cursor: pointer; color: var(--muted);
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+    }
+    .panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .panel-tab:hover:not(.active) { color: var(--text); background: #f8fafc; }
+
+    .tab-content { display: none; flex: 1; overflow-y: auto; }
+    .tab-content.active { display: flex; flex-direction: column; }
+
+    /* Layers */
+    .layers-section-title {
+      padding: 0.6rem 1rem 0.3rem; font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    }
+    .layer-item {
+      margin: 0 0.5rem 0.25rem; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .layer-item:hover { box-shadow: var(--shadow-sm); }
+    .layer-item.active-layer { border-color: var(--accent); }
+
+    .layer-main { padding: 0.65rem 0.75rem; display: flex; align-items: center; gap: 0.65rem; }
+    .layer-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 2px solid; }
+    .layer-info { flex: 1; min-width: 0; }
+    .layer-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .layer-meta { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
+    .layer-status {
+      font-size: 0.6rem; padding: 0.15rem 0.4rem; border-radius: 4px;
+      font-weight: 600; flex-shrink: 0;
+    }
+    .status-on { background: rgba(16,185,129,0.12); color: #059669; }
+    .status-off { background: #f1f5f9; color: var(--muted); }
+
+    .toggle { position: relative; display: inline-block; width: 34px; height: 18px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; border-radius: 18px; cursor: pointer;
+      background: #cbd5e1; transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+      left: 2px; bottom: 2px; background: #fff; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    .layer-opacity {
+      padding: 0.25rem 0.75rem 0.55rem 2.5rem;
+      display: flex; align-items: center; gap: 0.5rem;
+      border-top: 1px solid #f1f5f9;
+    }
+    .layer-opacity i { font-size: 0.6rem; color: var(--muted); }
+    .layer-opacity input[type="range"] { flex: 1; height: 4px; accent-color: var(--accent); cursor: pointer; }
+    .layer-opacity span { font-size: 0.65rem; color: var(--muted); width: 28px; text-align: right; }
+
+    /* Basemap */
+    .basemap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.75rem; }
+    .basemap-btn {
+      border: 2px solid var(--border); border-radius: 10px; padding: 0.6rem 0.5rem;
+      cursor: pointer; text-align: center; background: var(--card);
+      transition: all 0.2s; font-size: 0.72rem; font-weight: 500; color: var(--muted);
+    }
+    .basemap-btn:hover { border-color: var(--accent); color: var(--text); }
+    .basemap-btn.active {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(14,165,233,0.06);
+    }
+    .basemap-btn i { display: block; font-size: 1.1rem; margin-bottom: 0.3rem; }
+
+    .identify-mode-bar {
+      margin: 0.5rem 0.75rem; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.6rem 0.75rem; display: flex; align-items: center;
+      justify-content: space-between; font-size: 0.78rem; font-weight: 500;
+    }
+    .identify-mode-bar .hint { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+
+    /* Bottom Bar */
+    .bottom-bar {
+      position: absolute; bottom: 0; left: 0; right: var(--panel-w); z-index: 15;
+      height: 32px; background: rgba(255,255,255,0.94); backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 1rem; gap: 1.25rem;
+      font-family: ui-monospace, monospace; font-size: 0.7rem; color: var(--muted);
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bottom-bar.panel-hidden { right: 0; }
+    .bottom-bar span strong { color: var(--text); }
+    .bottom-bar .sep { width: 1px; height: 14px; background: var(--border); }
+
+    /* Loader & Toast */
+    .identify-loader {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      z-index: 25; display: none;
+      background: rgba(11,61,92,0.9); color: #fff; border-radius: 999px;
+      padding: 0.4rem 1rem; font-size: 0.75rem;
+      align-items: center; gap: 0.5rem; backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+    }
+    .identify-loader.show { display: flex; }
+    .spinner {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast {
+      position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%);
+      z-index: 25; background: rgba(15,23,42,0.85); color: #fff;
+      border-radius: 8px; padding: 0.45rem 1rem; font-size: 0.75rem;
+      display: none; white-space: nowrap; backdrop-filter: blur(8px);
+    }
+    .toast.show { display: block; }
+
+    /* Popup */
+    .maplibregl-popup-content {
+      border-radius: 12px !important; padding: 0 !important;
+      box-shadow: var(--shadow-lg) !important; border: 1px solid var(--border);
+      overflow: hidden; min-width: 230px; max-width: 340px;
+      font-family: "DM Sans", system-ui, sans-serif;
+    }
+    .popup-header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-lt));
+      color: #fff; padding: 10px 14px; font-size: 0.82rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .popup-header .layer-badge {
+      margin-left: auto; font-size: 0.6rem; font-weight: 600;
+      background: rgba(255,255,255,0.18); padding: 0.1rem 0.45rem; border-radius: 999px;
+    }
+    .popup-body { padding: 10px 12px; font-size: 0.78rem; max-height: 280px; overflow-y: auto; }
+    .popup-row {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 5px 0; border-bottom: 1px solid #f1f5f9; gap: 0.5rem;
+    }
+    .popup-row:last-child { border-bottom: none; }
+    .popup-key { color: var(--muted); font-weight: 500; flex-shrink: 0; max-width: 45%; }
+    .popup-val { font-weight: 600; text-align: right; word-break: break-word; }
+    .popup-footer {
+      padding: 6px 12px; font-size: 0.65rem; color: #94a3b8;
+      background: #f8fafc; border-top: 1px solid #f1f5f9;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .popup-section-title {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 6px 0 3px;
+      border-bottom: 1px solid var(--border); margin-bottom: 4px;
+    }
+
+    /* MapLibre overrides */
+    .maplibregl-ctrl-attrib { font-size: 0.62rem !important; }
+    .maplibregl-ctrl-bottom-right { bottom: 36px !important; }
+    .maplibregl-ctrl-bottom-left { bottom: 36px !important; }
+
+    /* Layer dots */
+    .dot-dap { background: #f59e0b; border-color: #d97706; }
+    .dot-mauza { background: #3b82f6; border-color: #2563eb; }
+    .dot-mauza-282 { background: #8b5cf6; border-color: #7c3aed; }
+    .dot-transport { background: #10b981; border-color: #059669; }
+    .dot-overlay { background: #ef4444; border-color: #dc2626; }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      :root { --panel-w: 100vw; }
+      .panel { top: var(--header-h); bottom: 0; left: 0; right: 0; }
+      .panel.hidden { transform: translateY(100%); }
+      .bottom-bar { right: 0 !important; }
+      .header-search { display: none; }
+    }
+  </style>
 </head>
-<body class="text-slate-800 antialiased h-screen flex flex-col">
+<body>
+  <div id="map"></div>
 
-   <!-- ==========================================
-        PHASE 1: LANDING & SEARCH VIEW
-        ========================================== -->
-   <div id="landing-view" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-slate-50 transition-opacity duration-500 overflow-y-auto py-10">
-       
-       <!-- Header / Logo -->
-       <div class="text-center mb-8 mt-10 md:mt-0">
-           <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-white mb-4 shadow-xl shadow-blue-900/20">
-               <i class="fa-solid fa-layer-group text-3xl"></i>
-           </div>
-           <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">LIOS Platform</h1>
-           <p class="text-sm font-medium text-slate-500 mt-2 uppercase tracking-widest">National Geospatial Intelligence Platform</p>
-       </div>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-logo">
+      <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
+      <div>
+        <span>LIOS</span>
+        <span class="logo-sub">RAJUK GEOSPATIAL PLATFORM</span>
+      </div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input id="coord-search" type="text" placeholder="Jump to lat, lng  (e.g. 23.72, 90.41)" autocomplete="off" />
+    </div>
+    <div class="header-right">
+      <span class="header-chip chip-live">LIVE</span>
+      <button class="btn-icon" id="btn-identify-toggle" title="Identify mode">
+        <i class="fa-solid fa-crosshairs"></i>
+      </button>
+      <button class="btn-icon active" id="btn-panel-toggle" title="Toggle panel">
+        <i class="fa-solid fa-table-columns"></i>
+      </button>
+    </div>
+  </header>
 
-       <!-- Search Card -->
-       <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-4xl overflow-hidden flex flex-col md:flex-row mx-4">
-           
-           <!-- Left Side: History & Quick Links -->
-           <div class="w-full md:w-1/3 bg-slate-50 border-r border-slate-200 p-6 flex flex-col">
-               <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Recent Searches</h3>
-               <ul class="space-y-3 flex-1">
-                   <li class="text-sm text-primary hover:text-blue-500 cursor-pointer flex items-center bg-white p-2 rounded border border-slate-200 shadow-sm"><i class="fa-solid fa-location-dot w-5 text-center text-slate-400"></i> Dhaka, Mirpur, JL-18</li>
-                   <li class="text-sm text-primary hover:text-blue-500 cursor-pointer flex items-center bg-white p-2 rounded border border-slate-200 shadow-sm"><i class="fa-solid fa-location-dot w-5 text-center text-slate-400"></i> CTG, CDA Plot-55</li>
-                   <li class="text-sm text-primary hover:text-blue-500 cursor-pointer flex items-center bg-white p-2 rounded border border-slate-200 shadow-sm"><i class="fa-solid fa-draw-polygon w-5 text-center text-slate-400"></i> Polygon Selection #88A</li>
-               </ul>
-               <div class="pt-4 border-t border-slate-200 mt-4">
-                   <button class="w-full py-2 text-xs font-semibold text-slate-600 border border-slate-300 rounded hover:bg-slate-100 transition"><i class="fa-solid fa-upload mr-1"></i> Upload GeoJSON/KML</button>
-               </div>
-           </div>
+  <!-- SIDE PANEL -->
+  <aside class="panel" id="panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-tab="layers" id="tab-layers">
+        <i class="fa-solid fa-layer-group"></i> Layers
+      </div>
+      <div class="panel-tab" data-tab="basemap" id="tab-basemap">
+        <i class="fa-solid fa-map"></i> Basemap
+      </div>
+      <div class="panel-tab" data-tab="identify" id="tab-identify">
+        <i class="fa-solid fa-circle-info"></i> Results
+      </div>
+    </div>
 
-           <!-- Right Side: The Master Search Form -->
-           <div class="w-full md:w-2/3 p-8">
-               <h2 class="text-xl font-bold text-slate-800 mb-6">Search Land & Spatial Intelligence</h2>
-               
-               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                   <div class="floating-input">
-                       <select id="division"><option value=""></option><option>Dhaka</option><option>Chittagong</option></select>
-                       <label>Division</label>
-                   </div>
-                   <div class="floating-input">
-                       <select id="district"><option value=""></option><option>Dhaka</option><option>Gazipur</option></select>
-                       <label>District</label>
-                   </div>
-                   <div class="floating-input">
-                       <select id="upazila"><option value=""></option><option>Mirpur</option><option>Savar</option></select>
-                       <label>Upazila</label>
-                   </div>
-                   <div class="floating-input">
-                       <select id="mouza"><option value=""></option><option>Senpara</option><option>Badda</option></select>
-                       <label>Mouza</label>
-                   </div>
-                   <div class="floating-input">
-                       <input type="text" placeholder=" " value="18">
-                       <label>JL Number</label>
-                   </div>
-                   <div class="floating-input">
-                       <input type="text" placeholder=" " value="4025">
-                       <label>RS / MS / BRS Plot No.</label>
-                   </div>
-               </div>
+    <!-- Layers Tab -->
+    <div class="tab-content active" id="content-layers">
+      <div class="identify-mode-bar">
+        <div>
+          <div>Identify all layers</div>
+          <div class="hint">Query every visible layer on click</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="identify-all-toggle" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="layers-section-title">RAJUK Official Layers</div>
+      <div id="layer-list"></div>
+    </div>
 
-               <div class="flex items-center gap-4 mb-8 text-sm text-slate-500 font-medium">
-                   <hr class="flex-1 border-slate-200">
-                   <span>OR SEARCH BY COORDINATES</span>
-                   <hr class="flex-1 border-slate-200">
-               </div>
+    <!-- Basemap Tab -->
+    <div class="tab-content" id="content-basemap">
+      <div style="padding: 0.75rem">
+        <div style="font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem">
+          Choose background map style
+        </div>
+        <div class="basemap-grid" id="basemap-grid"></div>
+      </div>
+    </div>
 
-               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                   <div class="floating-input">
-                       <input type="text" placeholder=" " value="23.8103">
-                       <label>Latitude</label>
-                   </div>
-                   <div class="floating-input">
-                       <input type="text" placeholder=" " value="90.4125">
-                       <label>Longitude</label>
-                   </div>
-                   <div class="floating-input">
-                       <select><option value=""></option><option selected>500m</option><option>1km</option><option>5km</option></select>
-                       <label>Search Radius</label>
-                   </div>
-               </div>
+    <!-- Identify Results Tab -->
+    <div class="tab-content" id="content-identify">
+      <div id="identify-results-panel" style="padding: 0.75rem">
+        <div style="color: var(--muted); font-size: 0.8rem; text-align: center; padding: 2rem 1rem">
+          <i class="fa-solid fa-crosshairs" style="font-size: 1.5rem; opacity: 0.3; display: block; margin-bottom: 0.5rem"></i>
+          Click anywhere on the map to identify features
+        </div>
+      </div>
+    </div>
+  </aside>
 
-               <div class="flex justify-end gap-3">
-                   <button class="px-6 py-3 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Clear</button>
-                   <button onclick="executeSearchWorkflow()" class="px-8 py-3 rounded-lg text-sm font-bold text-white bg-primary hover:bg-blue-800 shadow-lg shadow-blue-900/30 transition flex items-center gap-2">
-                       <i class="fa-solid fa-satellite-dish"></i> View Parcel Intelligence
-                   </button>
-               </div>
-           </div>
-       </div>
-   </div>
+  <!-- Bottom Status Bar -->
+  <div class="bottom-bar" id="bottom-bar">
+    <span>Lng <strong id="c-lng">—</strong></span>
+    <div class="sep"></div>
+    <span>Lat <strong id="c-lat">—</strong></span>
+    <div class="sep"></div>
+    <span>Zoom <strong id="c-zoom">—</strong></span>
+    <div class="sep"></div>
+    <span id="scale-label" style="margin-left: auto"></span>
+  </div>
 
-   <!-- ==========================================
-        PHASE 2: PROGRESSIVE APP VIEW (Split Layout)
-        ========================================== -->
-   <div id="app-view" class="hidden flex-1 flex flex-col md:flex-row w-full h-full opacity-0 transition-opacity duration-700">
-       
-       <!-- Left Panel: Intelligence Details & Layers (30%) -->
-       <aside class="w-full md:w-[30%] lg:w-[400px] h-full bg-white border-r border-slate-200 flex flex-col shadow-2xl z-20 shrink-0">
-           
-           <!-- Branding Header Mini -->
-           <div class="bg-primary text-white p-4 flex justify-between items-center shrink-0">
-               <div class="flex items-center gap-2">
-                   <i class="fa-solid fa-layer-group"></i>
-                   <span class="font-bold tracking-wide">LIOS Engine</span>
-               </div>
-               <button onclick="resetToLanding()" class="text-blue-200 hover:text-white text-xs"><i class="fa-solid fa-xmark fa-lg"></i></button>
-           </div>
+  <!-- Loader & Toast -->
+  <div class="identify-loader" id="identify-loader">
+    <div class="spinner"></div>
+    Identifying features…
+  </div>
+  <div class="toast" id="toast"></div>
 
-           <!-- Tabs -->
-           <div class="flex border-b border-slate-200 text-xs font-semibold text-slate-500 bg-slate-50 shrink-0">
-               <button onclick="switchAppTab('intelligence')" id="tab-btn-intelligence" class="flex-1 py-3 text-center tab-active hover:bg-slate-100 transition">Intelligence</button>
-               <button onclick="switchAppTab('layers')" id="tab-btn-layers" class="flex-1 py-3 text-center hover:bg-slate-100 transition">Layer Manager</button>
-           </div>
+  <!-- Scripts -->
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <script>
+    // ====================== LAYER CONFIG ======================
+    const LAYERS = [
+      {
+        id: "rajuk-dap",
+        name: "DAP Proposed Land Use",
+        meta: "Official Zoning 2022–2035",
+        dot: "dot-dap",
+        color: "#f59e0b",
+        def: true,
+        tiles: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/DAP_proposed_landuse/MapServer/tile/{z}/{y}/{x}",
+        identify: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/DAP_proposed_landuse/MapServer/identify"
+      },
+      {
+        id: "rajuk-mauza",
+        name: "RS Mauza Boundaries",
+        meta: "Cadastral Survey (Final)",
+        dot: "dot-mauza",
+        color: "#3b82f6",
+        def: true,
+        tiles: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/RS_Mauza_Tiles_Final/MapServer/tile/{z}/{y}/{x}",
+        identify: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/RS_Mauza_Tiles_Final/MapServer/identify"
+      },
+      {
+        id: "rajuk-mauza-282",
+        name: "RS Mauza (282 Scale)",
+        meta: "Cadastral Survey (Alt.)",
+        dot: "dot-mauza-282",
+        color: "#8b5cf6",
+        def: false,
+        tiles: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/RS_Mauza_282Scale/MapServer/tile/{z}/{y}/{x}",
+        identify: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/RS_Mauza_282Scale/MapServer/identify"
+      },
+      {
+        id: "rajuk-transport",
+        name: "Transport Network",
+        meta: "Roads, MRT & Transit Corridors",
+        dot: "dot-transport",
+        color: "#10b981",
+        def: false,
+        tiles: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/Transport_Network_Tiles/MapServer/tile/{z}/{y}/{x}",
+        identify: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/Transport_Network_Tiles/MapServer/identify"
+      },
+      {
+        id: "rajuk-overlay",
+        name: "Overlay Boundaries",
+        meta: "TOD Zones, KPI Areas & More",
+        dot: "dot-overlay",
+        color: "#ef4444",
+        def: false,
+        tiles: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/Overlay_Boundary_Tiles/MapServer/tile/{z}/{y}/{x}",
+        identify: "https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/Overlay_Boundary_Tiles/MapServer/identify"
+      }
+    ];
 
-           <!-- Tab Content: Parcel Intelligence -->
-           <div id="tab-intelligence" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-               <!-- Parcel ID -->
-               <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                   <div class="flex justify-between items-start mb-2">
-                       <h3 class="text-sm font-bold text-slate-800">Selected Parcel Details</h3>
-                       <span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] uppercase font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Verified</span>
-                   </div>
-                   <div class="grid grid-cols-2 gap-2 text-xs">
-                       <div class="text-slate-500">JL No: <strong class="text-slate-800 block">18</strong></div>
-                       <div class="text-slate-500">RS Plot: <strong class="text-slate-800 block">4025</strong></div>
-                       <div class="text-slate-500">Mouza: <strong class="text-slate-800 block">Senpara</strong></div>
-                       <div class="text-slate-500">Area: <strong class="text-slate-800 block">0.15 Acres</strong></div>
-                   </div>
-               </div>
+    const BASEMAPS = [
+      {
+        id: "carto-light",
+        name: "Light",
+        icon: "fa-sun",
+        def: true,
+        tiles: ["https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
+        attr: "© CARTO © OSM"
+      },
+      {
+        id: "carto-dark",
+        name: "Dark",
+        icon: "fa-moon",
+        tiles: ["https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
+        attr: "© CARTO © OSM"
+      },
+      {
+        id: "osm",
+        name: "Streets",
+        icon: "fa-road",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        attr: "© OpenStreetMap"
+      },
+      {
+        id: "satellite",
+        name: "Satellite",
+        icon: "fa-satellite",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        attr: "© Esri, Maxar"
+      }
+    ];
 
-               <!-- Aggregated Intelligence -->
-               <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Aggregated Data (Public)</h4>
-               
-               <div class="space-y-3">
-                   <div class="bg-white p-3 rounded-lg border-l-4 border-blue-500 shadow-sm flex gap-3 items-center">
-                       <i class="fa-solid fa-city text-blue-500 text-xl w-6 text-center"></i>
-                       <div>
-                           <span class="block text-[10px] text-slate-500 uppercase font-bold">Planning & Zoning</span>
-                           <span class="block text-sm font-semibold text-slate-800">Mixed Residential (RAJUK DAP)</span>
-                       </div>
-                   </div>
+    // ====================== MAP INIT ======================
+    const defBM = BASEMAPS.find(b => b.def);
 
-                   <div class="bg-white p-3 rounded-lg border-l-4 border-emerald-500 shadow-sm flex gap-3 items-center">
-                       <i class="fa-solid fa-water text-emerald-500 text-xl w-6 text-center"></i>
-                       <div>
-                           <span class="block text-[10px] text-slate-500 uppercase font-bold">Flood Risk Context</span>
-                           <span class="block text-sm font-semibold text-slate-800">Low Risk - Above FFL (FFWC)</span>
-                       </div>
-                   </div>
+    const map = new maplibregl.Map({
+      container: "map",
+      style: {
+        version: 8,
+        sources: {
+          basemap: {
+            type: "raster",
+            tiles: defBM.tiles,
+            tileSize: 256,
+            attribution: defBM.attr
+          }
+        },
+        layers: [{ id: "basemap", type: "raster", source: "basemap" }]
+      },
+      center: [90.4125, 23.8103],
+      zoom: 12,
+      attributionControl: true
+    });
 
-                   <div class="bg-white p-3 rounded-lg border-l-4 border-amber-500 shadow-sm flex gap-3 items-center">
-                       <i class="fa-solid fa-gavel text-amber-500 text-xl w-6 text-center"></i>
-                       <div>
-                           <span class="block text-[10px] text-slate-500 uppercase font-bold">Gazette / Legal</span>
-                           <span class="block text-sm font-semibold text-slate-800">No Acquisition Notice Found</span>
-                       </div>
-                   </div>
-               </div>
-           </div>
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "bottom-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
+    map.addControl(new maplibregl.FullscreenControl(), "bottom-right");
 
-           <!-- Tab Content: Layer Manager -->
-           <div id="tab-layers" class="hidden flex-1 overflow-y-auto bg-white pb-10">
-               
-               <!-- Domain Group 1: Land Administration -->
-               <div class="border-b border-slate-100">
-                   <div class="px-4 py-2 bg-slate-50 flex justify-between items-center text-xs font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-slate-200">
-                       <span><i class="fa-solid fa-map-location-dot mr-2 text-slate-400"></i> Land Administration</span>
-                   </div>
-                   <div class="p-4 space-y-4">
-                       
-                       <!-- Connector Item: RS Map -->
-                       <div class="layer-item group mb-4">
-                           <div class="flex justify-between items-center mb-1">
-                               <div class="flex items-center gap-2">
-                                   <input type="checkbox" onchange="toggleMapLayer('rs-layer')" class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary cursor-pointer">
-                                   <span class="text-sm font-semibold text-slate-800">RS Plot Bounds</span>
-                               </div>
-                               <span class="text-emerald-500 text-[10px] font-bold"><i class="fa-solid fa-circle text-[8px]"></i> 142ms</span>
-                           </div>
-                           <div class="flex justify-between items-center text-[10px] text-slate-400 font-mono ml-6 mb-2">
-                               <span>RAJUK / ArcGIS REST</span>
-                               <span><i class="fa-solid fa-star text-yellow-400"></i> Official</span>
-                           </div>
-                           <div class="ml-6 flex items-center gap-2">
-                               <span class="text-[10px] text-slate-400 uppercase">Opacity</span>
-                               <input type="range" min="0" max="100" value="70" oninput="setLayerOpacity('rs-layer', this.value)" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
-                           </div>
-                       </div>
+    // Cursor coordinates
+    map.on("mousemove", e => {
+      document.getElementById("c-lng").textContent = e.lngLat.lng.toFixed(6);
+      document.getElementById("c-lat").textContent = e.lngLat.lat.toFixed(6);
+    });
 
-                       <!-- Connector Item: MS Map -->
-                       <div class="layer-item group mb-4">
-                           <div class="flex justify-between items-center mb-1">
-                               <div class="flex items-center gap-2">
-                                   <input type="checkbox" onchange="toggleMapLayer('ms-layer')" class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary cursor-pointer">
-                                   <span class="text-sm font-semibold text-slate-800">MS Plot Bounds</span>
-                               </div>
-                               <span class="text-emerald-500 text-[10px] font-bold"><i class="fa-solid fa-circle text-[8px]"></i> 156ms</span>
-                           </div>
-                           <div class="flex justify-between items-center text-[10px] text-slate-400 font-mono ml-6 mb-2">
-                               <span>RAJUK / ArcGIS REST</span>
-                               <span><i class="fa-solid fa-star text-yellow-400"></i> Official</span>
-                           </div>
-                           <div class="ml-6 flex items-center gap-2">
-                               <span class="text-[10px] text-slate-400 uppercase">Opacity</span>
-                               <input type="range" min="0" max="100" value="70" oninput="setLayerOpacity('ms-layer', this.value)" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
-                           </div>
-                       </div>
+    map.on("move", () => {
+      const z = map.getZoom();
+      document.getElementById("c-zoom").textContent = z.toFixed(2);
+      const mpp = (156543.03 * Math.cos(map.getCenter().lat * Math.PI / 180)) / Math.pow(2, z);
+      document.getElementById("scale-label").textContent = "1 : " + Math.round((mpp * 96) / 0.0254).toLocaleString();
+    });
 
-                   </div>
-               </div>
+    // ====================== LOAD LAYERS ======================
+    map.on("load", () => {
+      const list = document.getElementById("layer-list");
 
-               <!-- Domain Group 2: Planning & Dev -->
-               <div class="border-b border-slate-100">
-                   <div class="px-4 py-2 bg-slate-50 flex justify-between items-center text-xs font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-slate-200">
-                       <span><i class="fa-solid fa-city mr-2 text-slate-400"></i> Planning & Dev</span>
-                   </div>
-                   <div class="p-4 space-y-4">
-                       <!-- Connector Item -->
-                       <div class="layer-item group">
-                           <div class="flex justify-between items-center mb-1">
-                               <div class="flex items-center gap-2">
-                                   <input type="checkbox" onchange="toggleMapLayer('rajuk-layer')" class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary cursor-pointer">
-                                   <span class="text-sm font-semibold text-slate-800">DAP Land Use Zoning</span>
-                               </div>
-                               <span class="text-emerald-500 text-[10px] font-bold"><i class="fa-solid fa-circle text-[8px]"></i> 188ms</span>
-                           </div>
-                           <div class="flex justify-between items-center text-[10px] text-slate-400 font-mono ml-6 mb-2">
-                               <span>RAJUK / ArcGIS REST</span>
-                               <span><i class="fa-solid fa-star text-yellow-400"></i> Official</span>
-                           </div>
-                           <div class="ml-6 flex items-center gap-2">
-                               <span class="text-[10px] text-slate-400 uppercase">Opacity</span>
-                               <input type="range" min="0" max="100" value="70" oninput="setLayerOpacity('rajuk-layer', this.value)" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
-                           </div>
-                       </div>
-                   </div>
-               </div>
+      LAYERS.forEach(ly => {
+        map.addSource(ly.id, {
+          type: "raster",
+          tiles: [ly.tiles],
+          tileSize: 256,
+          attribution: "© RAJUK Masterplan"
+        });
 
-               <!-- Domain Group 3: Remote Sensing -->
-               <div class="border-b border-slate-100">
-                   <div class="px-4 py-2 bg-slate-50 flex justify-between items-center text-xs font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-slate-200">
-                       <span><i class="fa-solid fa-satellite mr-2 text-slate-400"></i> Remote Sensing</span>
-                   </div>
-                   <div class="p-4 space-y-4">
-                       <div class="layer-item opacity-60">
-                           <div class="flex justify-between items-center mb-1">
-                               <div class="flex items-center gap-2">
-                                   <input type="checkbox" disabled class="w-4 h-4 text-slate-300 rounded border-gray-200">
-                                   <span class="text-sm font-semibold text-slate-500 line-through">Sentinel-2 Surface (STAC)</span>
-                               </div>
-                               <span class="text-amber-500 text-[10px] font-bold"><i class="fa-solid fa-circle text-[8px]"></i> Parsing...</span>
-                           </div>
-                           <div class="text-[10px] text-slate-400 font-mono ml-6">Microsoft Planetary Computer</div>
-                       </div>
-                   </div>
-               </div>
+        map.addLayer({
+          id: ly.id,
+          type: "raster",
+          source: ly.id,
+          layout: { visibility: ly.def ? "visible" : "none" },
+          paint: { "raster-opacity": 0.8 }
+        });
 
-           </div>
-       </aside>
+        // Create layer card
+        const card = document.createElement("div");
+        card.className = "layer-item" + (ly.def ? " active-layer" : "");
+        card.id = "card-" + ly.id;
 
-       <!-- Right Panel: The Map & Overlays (70%) -->
-       <main class="flex-1 relative w-full h-full bg-slate-100">
-           <!-- MapLibre Container -->
-           <div id="map" class="w-full h-full"></div>
+        card.innerHTML = `
+          <div class="layer-main">
+            <div class="layer-dot ${ly.dot}"></div>
+            <div class="layer-info">
+              <div class="layer-name">${ly.name}</div>
+              <div class="layer-meta">${ly.meta}</div>
+            </div>
+            <span class="layer-status ${ly.def ? "status-on" : "status-off"}" id="status-${ly.id}">
+              ${ly.def ? "ON" : "OFF"}
+            </span>
+            <label class="toggle">
+              <input type="checkbox" id="chk-${ly.id}" ${ly.def ? "checked" : ""}>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="layer-opacity" id="opr-${ly.id}" style="${ly.def ? "" : "display:none"}">
+            <i class="fa-solid fa-droplet"></i>
+            <input type="range" min="0" max="100" value="80" id="op-${ly.id}">
+            <span id="opv-${ly.id}">80%</span>
+          </div>
+        `;
 
-           <!-- Center Loading Indicator (Visible during transition) -->
-           <div id="map-loader" class="absolute inset-0 z-40 bg-white/50 backdrop-blur-sm flex flex-col items-center justify-center hidden">
-               <div class="loader w-12 h-12 border-4 border-slate-200 rounded-full mb-4"></div>
-               <p class="text-sm font-bold text-primary animate-pulse">Aggregating National Data...</p>
-           </div>
+        list.appendChild(card);
 
-           <!-- Professional Floating Map Controls -->
-           <div class="absolute top-4 right-4 z-30 flex flex-col gap-2">
-               <!-- Basemap Switcher (Mock) -->
-               <div class="bg-white rounded-lg shadow-md border border-slate-200 p-1 flex flex-col gap-1">
-                   <button class="w-8 h-8 rounded hover:bg-slate-100 text-slate-600 flex items-center justify-center" title="Map Layers">
-                       <i class="fa-solid fa-layer-group"></i>
-                   </button>
-                   <button class="w-8 h-8 rounded hover:bg-slate-100 text-slate-600 flex items-center justify-center" title="Satellite View">
-                       <i class="fa-solid fa-satellite"></i>
-                   </button>
-               </div>
-               <!-- Drawing Tools (Mock Placeholders for mapbox-gl-draw) -->
-               <div class="bg-white rounded-lg shadow-md border border-slate-200 p-1 flex flex-col gap-1">
-                   <button class="w-8 h-8 rounded hover:bg-slate-100 text-slate-600 flex items-center justify-center" title="Measure Distance">
-                       <i class="fa-solid fa-ruler"></i>
-                   </button>
-                   <button class="w-8 h-8 rounded hover:bg-slate-100 text-slate-600 flex items-center justify-center" title="Draw Polygon">
-                       <i class="fa-solid fa-draw-polygon"></i>
-                   </button>
-                   <button class="w-8 h-8 rounded hover:bg-slate-100 text-slate-600 flex items-center justify-center" title="Export Image">
-                       <i class="fa-solid fa-camera"></i>
-                   </button>
-               </div>
-           </div>
+        // Toggle visibility
+        document.getElementById("chk-" + ly.id).addEventListener("change", e => {
+          const v = e.target.checked;
+          map.setLayoutProperty(ly.id, "visibility", v ? "visible" : "none");
+          const s = document.getElementById("status-" + ly.id);
+          s.textContent = v ? "ON" : "OFF";
+          s.className = "layer-status " + (v ? "status-on" : "status-off");
+          card.classList.toggle("active-layer", v);
+          document.getElementById("opr-" + ly.id).style.display = v ? "" : "none";
+        });
 
-           <!-- Coordinate BBox Inspector Footer (Hidden on very small screens) -->
-           <div class="hidden md:flex absolute bottom-4 left-1/2 transform -translate-x-1/2 z-30 glass-panel px-4 py-2 rounded-full gap-6 text-[10px] font-mono text-slate-600">
-               <div class="flex items-center gap-1">
-                   <span class="uppercase font-bold text-slate-400">Zoom:</span>
-                   <span id="coord-zoom" class="text-primary font-bold">--</span>
-               </div>
-               <div class="w-px h-3 bg-slate-300"></div>
-               <div class="flex items-center gap-1">
-                   <span class="uppercase font-bold text-slate-400">Lng, Lat:</span>
-                   <span id="coord-center" class="text-primary font-bold">--</span>
-               </div>
-               <div class="w-px h-3 bg-slate-300"></div>
-               <div class="flex items-center gap-1">
-                   <span class="uppercase font-bold text-slate-400">EPSG:</span>
-                   <span class="text-primary font-bold">3857</span>
-               </div>
-           </div>
-       </main>
-   </div>
+        // Opacity slider
+        document.getElementById("op-" + ly.id).addEventListener("input", e => {
+          map.setPaintProperty(ly.id, "raster-opacity", e.target.value / 100);
+          document.getElementById("opv-" + ly.id).textContent = e.target.value + "%";
+        });
+      });
 
-   <!-- Application Logic -->
-   <script>
-       let map;
+      map.fire("move");
+    });
 
-       // --- Workflow Logic ---
-       function executeSearchWorkflow() {
-           // 1. Show Loading State on Button (Mocking delay)
-           const landing = document.getElementById('landing-view');
-           const appView = document.getElementById('app-view');
-           const mapLoader = document.getElementById('map-loader');
-           
-           landing.style.opacity = '0';
-           
-           setTimeout(() => {
-               landing.classList.add('hidden');
-               appView.classList.remove('hidden');
-               appView.style.opacity = '1';
-               mapLoader.classList.remove('hidden');
-               
-               // Initialize MapLibre exactly when container is visible
-               initMapEngine();
+    // ====================== BASEMAP SWITCHER ======================
+    let activeBasemap = defBM.id;
+    const bmGrid = document.getElementById("basemap-grid");
 
-               // Mocking data processing delay
-               setTimeout(() => {
-                   mapLoader.classList.add('hidden');
-                   // Fly to Dhaka (Simulating auto-zoom to parcel)
-                   if (map) {
-                       map.flyTo({ center: [90.4125, 23.8103], zoom: 14, duration: 2500, essential: true });
-                   }
-               }, 1500);
+    BASEMAPS.forEach(bm => {
+      const btn = document.createElement("div");
+      btn.className = "basemap-btn" + (bm.def ? " active" : "");
+      btn.id = "bm-" + bm.id;
+      btn.innerHTML = `<i class="fa-solid ${bm.icon}"></i>${bm.name}`;
 
-           }, 500);
-       }
+      btn.addEventListener("click", () => {
+        if (activeBasemap === bm.id) return;
+        activeBasemap = bm.id;
+        document.querySelectorAll(".basemap-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (map.getSource("basemap")) {
+          map.getSource("basemap").setTiles(bm.tiles);
+        }
+      });
 
-       function resetToLanding() {
-           const landing = document.getElementById('landing-view');
-           const appView = document.getElementById('app-view');
-           
-           appView.style.opacity = '0';
-           setTimeout(() => {
-               appView.classList.add('hidden');
-               landing.classList.remove('hidden');
-               setTimeout(() => landing.style.opacity = '1', 50);
-               
-               // Destroy map to save memory when back on landing
-               if (map) { map.remove(); map = null; }
-           }, 700);
-       }
+      bmGrid.appendChild(btn);
+    });
 
-       // --- Sidebar Tab Logic ---
-       function switchAppTab(tabId) {
-           ['intelligence', 'layers'].forEach(t => {
-               document.getElementById(`tab-${t}`).classList.add('hidden');
-               document.getElementById(`tab-btn-${t}`).classList.remove('tab-active');
-           });
-           document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-           document.getElementById(`tab-btn-${tabId}`).classList.add('tab-active');
-       }
+    // ====================== PANEL TOGGLE ======================
+    const panel = document.getElementById("panel");
+    const bottomBar = document.getElementById("bottom-bar");
+    const btnPanel = document.getElementById("btn-panel-toggle");
 
-       // --- MapLibre Engine (Light Theme GIS Core) ---
-       function initMapEngine() {
-           if (map) return; // Prevent double init
+    btnPanel.addEventListener("click", () => {
+      const hidden = panel.classList.toggle("hidden");
+      btnPanel.classList.toggle("active", !hidden);
+      bottomBar.classList.toggle("panel-hidden", hidden);
+      setTimeout(() => map.resize(), 320);
+    });
 
-           map = new maplibregl.Map({
-               container: 'map',
-               // Using Carto Positron (Light) - Excellent for Overlay Visibility
-               style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-               center: [90.0, 24.0], // Initial far out
-               zoom: 6,
-               attributionControl: false
-           });
+    // ====================== TABS ======================
+    document.querySelectorAll(".panel-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".panel-tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("content-" + tab.dataset.tab).classList.add("active");
+      });
+    });
 
-           // Native Controls
-           map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
-           map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
+    // ====================== IDENTIFY ======================
+    let currentPopup = null;
+    let identifyAll = false;
 
-           map.on('move', () => {
-               const zoomEl = document.getElementById('coord-zoom');
-               const centerEl = document.getElementById('coord-center');
-               if(zoomEl) zoomEl.textContent = map.getZoom().toFixed(2);
-               if(centerEl) {
-                   const c = map.getCenter();
-                   centerEl.textContent = `${c.lng.toFixed(4)}, ${c.lat.toFixed(4)}`;
-               }
-           });
+    document.getElementById("identify-all-toggle").addEventListener("change", e => {
+      identifyAll = e.target.checked;
+    });
 
-           map.on('load', () => {
-               
-               // Add RAJUK DAP Mock Data Layer (Using XYZ tiles syntax logic, mocking with a placeholder geometry if tile isn't live)
-               map.addSource('mock-parcel', {
-                   'type': 'geojson',
-                   'data': {
-                       'type': 'Feature',
-                       'geometry': {
-                           'type': 'Polygon',
-                           'coordinates': [[[90.410, 23.812], [90.415, 23.812], [90.415, 23.808], [90.410, 23.808], [90.410, 23.812]]]
-                       }
-                   }
-               });
+    const btnId = document.getElementById("btn-identify-toggle");
+    btnId.addEventListener("click", () => {
+      identifyAll = !identifyAll;
+      document.getElementById("identify-all-toggle").checked = identifyAll;
+      btnId.classList.toggle("active", identifyAll);
+      showToast(identifyAll ? "Identify: all visible layers" : "Identify: top layer only", 1800);
+    });
 
-               // Parcel Fill (Light Blue)
-               map.addLayer({
-                   'id': 'mock-parcel-fill',
-                   'type': 'fill',
-                   'source': 'mock-parcel',
-                   'paint': {
-                       'fill-color': '#3b82f6',
-                       'fill-opacity': 0.2
-                   }
-               });
-               
-               // Parcel Outline (Dark Blue)
-               map.addLayer({
-                   'id': 'mock-parcel-line',
-                   'type': 'line',
-                   'source': 'mock-parcel',
-                   'paint': {
-                       'line-color': '#1e3a8a',
-                       'line-width': 2
-                   }
-               });
+    function showToast(msg, ms = 2500) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), ms);
+    }
 
-               // -----------------------------------------------------------
-               // 1. RAJUK RS MAP LAYER (Revisional Survey)
-               // -----------------------------------------------------------
-               map.addSource('rs-source', {
-                   'type': 'raster',
-                   'tiles': [
-                       'https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/RS_Mouza/MapServer/tile/{z}/{y}/{x}'
-                   ],
-                   'tileSize': 256
-               });
-               map.addLayer({
-                   'id': 'rs-layer',
-                   'type': 'raster',
-                   'source': 'rs-source',
-                   'layout': { 'visibility': 'none' }, // Off by default
-                   'paint': { 'raster-opacity': 0.7 }
-               });
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
 
-               // -----------------------------------------------------------
-               // 2. RAJUK MS MAP LAYER (Metropolitan Survey)
-               // -----------------------------------------------------------
-               map.addSource('ms-source', {
-                   'type': 'raster',
-                   'tiles': [
-                       'https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/MS_Mouza/MapServer/tile/{z}/{y}/{x}'
-                   ],
-                   'tileSize': 256
-               });
-               map.addLayer({
-                   'id': 'ms-layer',
-                   'type': 'raster',
-                   'source': 'ms-source',
-                   'layout': { 'visibility': 'none' }, // Off by default
-                   'paint': { 'raster-opacity': 0.7 }
-               });
+    async function doIdentify(lng, lat) {
+      const loader = document.getElementById("identify-loader");
+      loader.classList.add("show");
 
-               // -----------------------------------------------------------
-               // 3. RAJUK DAP LAND USE LAYER
-               // -----------------------------------------------------------
-               map.addSource('rajuk-source', {
-                   'type': 'raster',
-                   'tiles': [
-                       'https://masterplan.rajuk.gov.bd/server/rest/services/Hosted/RAJUK_DAP_Map/MapServer/tile/{z}/{y}/{x}'
-                   ],
-                   'tileSize': 256
-               });
-               map.addLayer({
-                   'id': 'rajuk-layer',
-                   'type': 'raster',
-                   'source': 'rajuk-source',
-                   'layout': { 'visibility': 'none' }, // Off by default
-                   'paint': { 'raster-opacity': 0.7 }
-               });
-           });
-       }
+      const vis = LAYERS.filter(l => map.getLayoutProperty(l.id, "visibility") === "visible");
+      if (!vis.length) {
+        loader.classList.remove("show");
+        showToast("No visible layers to identify");
+        return;
+      }
 
-       // --- Layer Interactivity ---
-       function toggleMapLayer(layerId) {
-           if(!map || !map.getLayer(layerId)) return;
-           const visibility = map.getLayoutProperty(layerId, 'visibility');
-           const newVis = visibility === 'visible' ? 'none' : 'visible';
-           map.setLayoutProperty(layerId, 'visibility', newVis);
-       }
+      const b = map.getBounds();
+      const extent = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+      const cv = map.getCanvas();
+      const imgDisp = `${cv.width},${cv.height},96`;
+      const toQuery = identifyAll ? vis : [vis[0]];
+      const allRes = [];
 
-       function setLayerOpacity(layerId, val) {
-           if(!map || !map.getLayer(layerId)) return;
-           map.setPaintProperty(layerId, 'raster-opacity', val / 100);
-       }
+      await Promise.allSettled(
+        toQuery.map(async ly => {
+          try {
+            const u = new URL(ly.identify);
+            u.searchParams.set("f", "json");
+            u.searchParams.set("tolerance", "10");
+            u.searchParams.set("returnGeometry", "false");
+            u.searchParams.set("imageDisplay", imgDisp);
+            u.searchParams.set("geometry", `${lng},${lat}`);
+            u.searchParams.set("geometryType", "esriGeometryPoint");
+            u.searchParams.set("sr", "4326");
+            u.searchParams.set("mapExtent", extent);
+            u.searchParams.set("layers", "all");
 
-   </script>
+            const r = await fetch(u.toString());
+            const d = await r.json();
+            if (d.results && d.results.length) {
+              allRes.push({ ly, results: d.results });
+            }
+          } catch (err) {
+            console.warn("Identify failed", ly.id, err);
+          }
+        })
+      );
+
+      loader.classList.remove("show");
+
+      if (!allRes.length) {
+        showToast("No features found at this location");
+        updatePanel(null, lng, lat);
+        return;
+      }
+
+      // Build popup HTML
+      let ph = "";
+      allRes.forEach(item => {
+        const attrs = item.results[0].attributes || {};
+        let rows = "";
+        Object.entries(attrs).forEach(([k, v]) => {
+          if (!k || ["shape", "objectid"].includes(k.toLowerCase())) return;
+          if (v === null || v === undefined || v === "") return;
+          rows += `<div class="popup-row"><span class="popup-key">${esc(k)}</span><span class="popup-val">${esc(v)}</span></div>`;
+        });
+        if (!rows) rows = `<span style="color:var(--muted);font-size:.75rem">No attribute data</span>`;
+
+        ph += `
+          <div class="popup-section-title" style="color:${item.ly.color}">
+            <i class="fa-solid fa-circle" style="font-size:.5rem"></i> ${esc(item.ly.name)}
+          </div>
+          ${rows}
+        `;
+        if (item.results.length > 1) {
+          ph += `<div style="font-size:.65rem;color:var(--muted);margin-top:3px">Showing 1 of ${item.results.length}</div>`;
+        }
+      });
+
+      const html = `
+        <div class="popup-header">
+          <i class="fa-solid fa-crosshairs" style="opacity:.7"></i> Feature Attributes
+          <span class="layer-badge">${allRes.length} layer${allRes.length > 1 ? "s" : ""}</span>
+        </div>
+        <div class="popup-body">${ph}</div>
+        <div class="popup-footer">
+          <span>${lat.toFixed(6)}, ${lng.toFixed(6)}</span>
+          <span style="color:var(--accent);cursor:pointer" onclick="switchTab()">View full →</span>
+        </div>
+      `;
+
+      if (currentPopup) {
+        currentPopup.remove();
+        currentPopup = null;
+      }
+
+      currentPopup = new maplibregl.Popup({
+        closeButton: true,
+        closeOnClick: true,
+        maxWidth: "360px"
+      })
+        .setLngLat([lng, lat])
+        .setHTML(html)
+        .addTo(map);
+
+      updatePanel(allRes, lng, lat);
+    }
+
+    function switchTab() {
+      document.querySelectorAll(".panel-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      document.getElementById("tab-identify").classList.add("active");
+      document.getElementById("content-identify").classList.add("active");
+    }
+
+    function updatePanel(allRes, lng, lat) {
+      const p = document.getElementById("identify-results-panel");
+      if (!allRes || !allRes.length) {
+        p.innerHTML = `
+          <div style="color:var(--muted);font-size:.8rem;text-align:center;padding:2rem 1rem">
+            <i class="fa-solid fa-ban" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:.5rem"></i>
+            No features at ${lat.toFixed(5)}, ${lng.toFixed(5)}
+          </div>
+        `;
+        return;
+      }
+
+      let h = `
+        <div style="font-size:.7rem;color:var(--muted);padding:.5rem .75rem .25rem">
+          Query at <strong style="color:var(--text)">${lat.toFixed(5)}, ${lng.toFixed(5)}</strong>
+        </div>
+      `;
+
+      allRes.forEach(item => {
+        h += `
+          <div style="margin:.4rem .75rem 0;background:var(--card);border:1px solid var(--border);
+                      border-left:3px solid ${item.ly.color};border-radius:8px;padding:.6rem .75rem">
+            <div style="font-size:.72rem;font-weight:700;color:${item.ly.color};margin-bottom:.35rem">
+              ${esc(item.ly.name)}
+            </div>
+        `;
+        Object.entries(item.results[0].attributes || {}).forEach(([k, v]) => {
+          if (!k || ["shape", "objectid"].includes(k.toLowerCase())) return;
+          if (v === null || v === undefined || v === "") return;
+          h += `<div class="popup-row"><span class="popup-key">${esc(k)}</span><span class="popup-val">${esc(v)}</span></div>`;
+        });
+        h += `</div>`;
+      });
+
+      p.innerHTML = h;
+    }
+
+    // Click to identify
+    map.on("click", async e => {
+      await doIdentify(e.lngLat.lng, e.lngLat.lat);
+    });
+    map.getCanvas().style.cursor = "crosshair";
+
+    // ====================== COORDINATE SEARCH ======================
+    document.getElementById("coord-search").addEventListener("keydown", e => {
+      if (e.key !== "Enter") return;
+
+      const val = e.target.value.trim();
+      const parts = val.split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+
+      if (parts.length < 2) {
+        showToast("Enter as: lat, lng");
+        return;
+      }
+
+      let lat = parts[0], lng = parts[1];
+      // Auto-detect if user put lng first
+      if (parts[0] > 45 || (parts[1] >= 20 && parts[1] <= 27)) {
+        lat = parts[1];
+        lng = parts[0];
+      }
+
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        showToast("Invalid coordinates");
+        return;
+      }
+
+      map.flyTo({
+        center: [lng, lat],
+        zoom: Math.max(map.getZoom(), 14),
+        duration: 900
+      });
+
+      new maplibregl.Marker({ color: "#0ea5e9" })
+        .setLngLat([lng, lat])
+        .addTo(map);
+
+      e.target.value = "";
+    });
+  </script>
 </body>
 </html>
