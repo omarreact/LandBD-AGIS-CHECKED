@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - feature/nextjs-migration
+      - production/landbd-v1
   pull_request:
     branches:
       - feature/nextjs-migration
+      - production/landbd-v1
+  workflow_dispatch:
 
 permissions:
   contents: read
