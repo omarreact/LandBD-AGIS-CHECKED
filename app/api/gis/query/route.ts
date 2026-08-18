@@ -3,7 +3,7 @@ import { getApi } from "../../../../lib/gis/registry";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_KEYS = new Set(["where", "outFields", "returnGeometry", "geometry", "geometryType", "inSR", "outSR", "resultRecordCount", "resultOffset", "orderByFields", "f", "token"]);
+const ALLOWED_KEYS = new Set(["where", "outFields", "returnGeometry", "geometry", "geometryType", "inSR", "outSR", "resultRecordCount", "resultOffset", "orderByFields"]);
 
 function error(message: string, status: number) {
   return NextResponse.json({ ok: false, error: message }, { status });
@@ -35,10 +35,7 @@ export async function GET(request: NextRequest) {
   if (token) endpoint.searchParams.set("token", token);
 
   try {
-    const response = await fetch(endpoint, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
+    const response = await fetch(endpoint, { headers: { Accept: "application/json" }, cache: "no-store" });
     const text = await response.text();
     if (!response.ok) return error(`GIS provider returned HTTP ${response.status}`, 502);
 
